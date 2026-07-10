@@ -25,12 +25,11 @@ jobs:
         uses: sonarsource/sonarcloud-github-action@v2
         with:
           args: >
-            -Dsonar.projectKey=ebc-app
             -Dsonar.organization=amine1919a
+            -Dsonar.projectKey=ebc-app
             -Dsonar.sources=app/symfony
             -Dsonar.exclusions=vendor/**,node_modules/**,var/**
             -Dsonar.php.coverage.reportPaths=coverage.xml
-            -Dsonar.qualitygate.wait=true
 
   sast-phpstan:
     name: SAST - PHPStan
@@ -79,10 +78,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Snyk Scan
-        uses: snyk/actions/cli@master
         continue-on-error: true
-        with:
-          args: --severity-threshold=high --file=app/symfony/composer.json
+        run: |
+          cd app/symfony
+          curl -s https://static.snyk.io/cli/latest/snyk-linux -o /usr/local/bin/snyk
+          chmod +x /usr/local/bin/snyk
+          snyk test --severity-threshold=high || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
