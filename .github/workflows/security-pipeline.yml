@@ -157,9 +157,9 @@ jobs:
             -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
             -e xpack.security.enabled=false \
             elasticsearch:8.10.2
-          docker run -d --name ebc-app \
+          docker run -d --name app \
             ebc-app:${{ github.sha }}
-          docker run -d --name ebc-nginx --link ebc-app \
+          docker run -d --name ebc-nginx --link app \
             -v ${{ github.workspace }}/app/nginx/default.conf:/etc/nginx/conf.d/default.conf \
             -p 8080:80 \
             nginx:alpine
@@ -199,9 +199,9 @@ jobs:
             -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
             -e xpack.security.enabled=false \
             elasticsearch:8.10.2
-          docker run -d --name ebc-app \
+          docker run -d --name app \
             ebc-app:${{ github.sha }}
-          docker run -d --name ebc-nginx --link ebc-app \
+          docker run -d --name ebc-nginx --link app \
             -v ${{ github.workspace }}/app/nginx/default.conf:/etc/nginx/conf.d/default.conf \
             -p 8080:80 \
             nginx:alpine
@@ -241,9 +241,9 @@ jobs:
             -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
             -e xpack.security.enabled=false \
             elasticsearch:8.10.2
-          docker run -d --name ebc-app \
+          docker run -d --name app \
             ebc-app:${{ github.sha }}
-          docker run -d --name ebc-nginx --link ebc-app \
+          docker run -d --name ebc-nginx --link app \
             -v ${{ github.workspace }}/app/nginx/default.conf:/etc/nginx/conf.d/default.conf \
             -p 8080:80 \
             nginx:alpine
