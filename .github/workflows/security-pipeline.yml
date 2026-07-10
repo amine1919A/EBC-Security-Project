@@ -81,9 +81,9 @@ jobs:
         continue-on-error: true
         run: |
           cd app/symfony
-          curl -s https://static.snyk.io/cli/latest/snyk-linux -o /usr/local/bin/snyk
-          chmod +x /usr/local/bin/snyk
-          snyk test --severity-threshold=high || true
+          curl -sL https://static.snyk.io/cli/latest/snyk-linux -o /tmp/snyk
+          chmod +x /tmp/snyk
+          /tmp/snyk test --severity-threshold=high || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
