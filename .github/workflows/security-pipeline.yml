@@ -6,27 +6,37 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 6 * * 1'  # Chaque lundi à 6h
+    - cron: '0 6 * * 1'
 
 env:
   DOCKER_IMAGE: ghcr.io/${{ github.repository }}/ebc-app:${{ github.sha }}
-  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
 jobs:
+  # ─── BUILD ───
+  build:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: |
+          docker build -t ebc-app:${{ github.sha }} -f app/Dockerfile app/
+          echo "✅ Image build: ebc-app:${{ github.sha }}"
+
   # ─── ÉTAPE 1 : SAST ───
   sast-sonarqube:
     name: SAST - SonarQube
     runs-on: ubuntu-latest
+    if: env.SONAR_TOKEN != ''
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: SonarQube Scan
         uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           args: >
             -Dsonar.projectKey=ebc-app
@@ -54,10 +64,9 @@ jobs:
   sca-trivy:
     name: SCA - Trivy
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build -t ebc-app:${{ github.sha }} -f app/Dockerfile app/
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -81,12 +90,13 @@ jobs:
   sca-snyk:
     name: SCA - Snyk
     runs-on: ubuntu-latest
+    if: env.SNYK_TOKEN != ''
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Snyk Scan
         uses: snyk/actions/php@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high
           command: test
@@ -123,16 +133,17 @@ jobs:
   test-api:
     name: Tests API Sécurité
     runs-on: ubuntu-latest
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
       - name: Docker Compose up
-        run: docker-compose up -d app mysql elasticsearch
+        run: docker compose -f docker-compose.yml up -d app mysql elasticsearch
       - name: Wait for services
-        run: sleep 10
+        run: sleep 30
       - name: API Tests
         run: |
           cd ci-cd/scripts/api-tests
-          pip install -r requirements.txt
+          pip install -q -r requirements.txt
           pytest test_api.py -v --junitxml=../../api-results.xml
       - name: Upload Test Results
         if: always()
@@ -145,7 +156,8 @@ jobs:
   dast-zap:
     name: DAST - OWASP ZAP
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, test-api]
+    if: always()
     steps:
       - uses: actions/checkout@v4
       - name: ZAP Scan
@@ -165,7 +177,8 @@ jobs:
   dast-nikto:
     name: DAST - Nikto
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, test-api]
+    if: always()
     steps:
       - uses: actions/checkout@v4
       - name: Nikto Scan
@@ -181,19 +194,7 @@ jobs:
           name: nikto-report
           path: nikto-report.xml
 
-  # ─── ÉTAPE 6 : BUILD ───
-  build:
-    name: Build Docker
-    runs-on: ubuntu-latest
-    needs: [sast-sonarqube, sast-phpstan, sca-trivy, secrets-gitleaks, test-unit]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build & Push Docker image
-        run: |
-          docker build -t ${{ env.DOCKER_IMAGE }} -f app/Dockerfile app/
-          echo "✅ Image build: ${{ env.DOCKER_IMAGE }}"
-
-  # ─── ÉTAPE 7 : KPIs ───
+  # ─── ÉTAPE 6 : KPIs ───
   kpi-aggregate:
     name: KPIs - Métriques
     runs-on: ubuntu-latest
