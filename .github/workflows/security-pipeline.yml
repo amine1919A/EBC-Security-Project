@@ -1,0 +1,212 @@
+name: EBC Security Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Chaque lundi à 6h
+
+env:
+  DOCKER_IMAGE: ghcr.io/${{ github.repository }}/ebc-app:${{ github.sha }}
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+jobs:
+  # ─── ÉTAPE 1 : SAST ───
+  sast-sonarqube:
+    name: SAST - SonarQube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: SonarQube Scan
+        uses: sonarsource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=ebc-app
+            -Dsonar.sources=.
+            -Dsonar.exclusions=vendor/**,node_modules/**,var/**
+            -Dsonar.php.coverage.reportPaths=coverage.xml
+            -Dsonar.qualitygate.wait=true
+
+  sast-phpstan:
+    name: SAST - PHPStan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHPStan Analysis
+        uses: docker://php:8.2-cli
+        with:
+          args: >
+            sh -c "apt-get update && apt-get install -y git unzip &&
+                   curl -sS https://getcomposer.org/installer | php &&
+                   mv composer.phar /usr/local/bin/composer &&
+                   cd app/symfony && composer install --no-interaction &&
+                   vendor/bin/phpstan analyse --level=max src/"
+
+  # ─── ÉTAPE 2 : SCA ───
+  sca-trivy:
+    name: SCA - Trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t ebc-app:${{ github.sha }} -f app/Dockerfile app/
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ebc-app:${{ github.sha }}
+          format: json
+          output: trivy-report.json
+          severity: CRITICAL,HIGH
+      - name: Trivy FS Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          format: json
+          output: trivy-fs-report.json
+          severity: CRITICAL,HIGH
+      - name: Upload Trivy Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-reports
+          path: trivy-*.json
+
+  sca-snyk:
+    name: SCA - Snyk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Snyk Scan
+        uses: snyk/actions/php@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          command: test
+
+  # ─── ÉTAPE 3 : SECRETS ───
+  secrets-gitleaks:
+    name: Secrets - Gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── ÉTAPE 4 : TESTS ───
+  test-unit:
+    name: Tests Unitaires
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHPUnit
+        uses: docker://php:8.2-cli
+        with:
+          args: >
+            sh -c "apt-get update && apt-get install -y git unzip &&
+                   curl -sS https://getcomposer.org/installer | php &&
+                   mv composer.phar /usr/local/bin/composer &&
+                   cd app/symfony && composer install --no-interaction &&
+                   vendor/bin/phpunit"
+
+  test-api:
+    name: Tests API Sécurité
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Compose up
+        run: docker-compose up -d app mysql elasticsearch
+      - name: Wait for services
+        run: sleep 10
+      - name: API Tests
+        run: |
+          cd ci-cd/scripts/api-tests
+          pip install -r requirements.txt
+          pytest test_api.py -v --junitxml=../../api-results.xml
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-results
+          path: api-results.xml
+
+  # ─── ÉTAPE 5 : DAST ───
+  dast-zap:
+    name: DAST - OWASP ZAP
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: ZAP Scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: http://localhost:8080
+          rules_file_name: security-tools/owasp-zap/policies/EBC-policy.policy
+          issue_title: ZAP Scan Report
+          allow_issue_writing: false
+      - name: Upload ZAP Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report.html
+
+  dast-nikto:
+    name: DAST - Nikto
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nikto Scan
+        run: |
+          docker run --rm --network host alpine:latest \
+            sh -c "apk add --no-cache nikto && \
+                   nikto -h http://localhost:8080 -Format xml \
+                   -output nikto-report.xml"
+      - name: Upload Nikto Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nikto-report
+          path: nikto-report.xml
+
+  # ─── ÉTAPE 6 : BUILD ───
+  build:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    needs: [sast-sonarqube, sast-phpstan, sca-trivy, secrets-gitleaks, test-unit]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & Push Docker image
+        run: |
+          docker build -t ${{ env.DOCKER_IMAGE }} -f app/Dockerfile app/
+          echo "✅ Image build: ${{ env.DOCKER_IMAGE }}"
+
+  # ─── ÉTAPE 7 : KPIs ───
+  kpi-aggregate:
+    name: KPIs - Métriques
+    runs-on: ubuntu-latest
+    needs: [dast-zap, dast-nikto]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aggregate KPIs
+        run: |
+          pip install requests prometheus-client pandas pyyaml
+          python ci-cd/scripts/aggregate-kpi.py
+      - name: Upload KPI Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kpi-metrics
+          path: kpi-metrics.json

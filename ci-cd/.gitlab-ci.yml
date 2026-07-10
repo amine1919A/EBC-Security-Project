@@ -3,6 +3,7 @@ stages:
   - security-sca
   - security-secrets
   - test
+  - security-iast
   - security-dast
   - build
   - deploy
@@ -77,6 +78,23 @@ security:sast_phpstan:
 # ============================================================
 # ÉTAPE 2 : SCA - Analyse des Dépendances
 # ============================================================
+
+security:sca_snyk:
+  stage: security-sca
+  image: node:latest
+  before_script:
+    - npm install -g snyk
+  script:
+    - snyk auth $SNYK_TOKEN
+    - snyk test --severity-threshold=high --json > snyk-report.json || true
+  artifacts:
+    paths:
+      - snyk-report.json
+  only:
+    - main
+    - develop
+  variables:
+    SNYK_TOKEN: $SNYK_TOKEN
 
 security:sca_trivy:
   stage: security-sca
@@ -154,6 +172,38 @@ test:api:
   only:
     - main
     - develop
+
+tests:security_built_artifacts:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - bash ci-cd/scripts/validate-artifacts.sh
+  only:
+    - main
+    - develop
+
+tests:security_config_validation:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache bash grep
+  script:
+    - bash ci-cd/scripts/validate-config.sh
+  only:
+    - main
+    - develop
+
+security:iast_contrast:
+  stage: security-iast
+  image: python:3.11
+  script:
+    - bash ci-cd/scripts/run-iast.sh
+  only:
+    - main
+  variables:
+    GIT_STRATEGY: clone
 
 # ============================================================
 # ÉTAPE 5 : DAST - Tests Dynamiques

@@ -1,0 +1,19 @@
+# Snyk Policy pour EBC Security Platform
+# Document: https://docs.snyk.io/snyk-cli/policies
+
+exclude:
+  global:
+    - vendor/**/*
+    - node_modules/**/*
+    - .git/**/*
+
+patch:
+  'SNYK-PHP-*':
+    - '*':
+        patched: '2026-07-10'
+
+ignore:
+  'SNYK-PHP-LARAVEL-*':
+    - '*':
+        reason: 'Pas de vulnérabilité critique pour notre version'
+        expires: '2026-12-31'

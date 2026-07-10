@@ -1,0 +1,38 @@
+# Configuration Contrast Security (IAST)
+# Nécessite un compte trial : https://www.contrastsecurity.com/contrast-community-edition
+# Documentation : https://docs.contrastsecurity.com/
+
+agent:
+  service:
+    enable: true
+    host: ebc-app
+    port: 9010
+
+  application:
+    name: EBC-Security-Platform
+    type: php
+    path: /var/www/html
+
+  server:
+    name: ebc-app-server
+    type: php-fpm
+
+  assess:
+    enable: true
+    rules:
+      - sql-injection
+      - xss
+      - command-injection
+      - path-traversal
+      - xxe
+      - insecure-deserialization
+      - header-injection
+      - reflection-injection
+
+  protect:
+    enable: false  # Mode block désactivé pour les tests
+
+  health:
+    check:
+      enable: true
+      interval: 60
