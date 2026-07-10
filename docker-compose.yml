@@ -132,19 +132,36 @@ services:
       GF_INSTALL_PLUGINS: grafana-piechart-panel
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     ports:
       - "3000:3000"
     networks:
       - ebc-network
+
+  contrast-agent:
+    image: contrast/agent:latest
+    container_name: ebc-contrast-agent
+    restart: unless-stopped
+    environment:
+      CONTRAST__API__API_KEY: ""
+      CONTRAST__API__SERVICE_KEY: ""
+      CONTRAST__API__URL: ""
+      CONTRAST__AGENT__JAVA__STANDALONE_APP_NAME: EBC
+      CONTRAST__AGENT__JAVA__STANDALONE_APP_VERSION: 1.0.0
+    volumes:
+      - contrast-data:/opt/contrast/data
+    networks:
+      - ebc-network
+    profiles:
+      - iast
 
 volumes:
   mysql-data:
   sonar-data:
   sonar-db-data:
   grafana-data:
+  contrast-data:
 
 networks:
   ebc-network:

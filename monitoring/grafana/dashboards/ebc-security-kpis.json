@@ -1,51 +1,173 @@
 {
-  "title": "EBC Security KPIs",
-  "uid": "ebc-security-kpis",
-  "tags": ["ebc", "security"],
-  "timezone": "browser",
-  "panels": [
-    {
-      "title": "Global Security Score",
-      "type": "gauge",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-      "targets": [{ "expr": "ebc_security_score", "legendFormat": "Score" }],
-      "options": {
-        "min": 0,
-        "max": 100,
+  "dashboard": {
+    "title": "EBC Security - OWASP Top 10 Coverage",
+    "description": "Couverture OWASP Top 10 (2021) - scores par catégorie",
+    "timezone": "browser",
+    "editable": true,
+    "panels": [
+      {
+        "title": "Security Score Global",
+        "type": "gauge",
+        "gridPos": {"h": 6, "w": 4, "x": 0, "y": 0},
+        "id": 1,
+        "targets": [{"expr": "ebc_security_score", "legendFormat": "Score"}],
+        "options": {
+          "min": 0, "max": 100,
+          "thresholds": [
+            {"color": "red", "value": null},
+            {"color": "orange", "value": 50},
+            {"color": "green", "value": 80}
+          ]
+        }
+      },
+      {
+        "title": "Outils Status (1=OK, 0=FAIL, 0.5=No Data)",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 8, "x": 4, "y": 0},
+        "id": 2,
+        "targets": [
+          {"expr": "ebc_sonarqube_status", "legendFormat": "SonarQube"},
+          {"expr": "ebc_trivy_status", "legendFormat": "Trivy"},
+          {"expr": "ebc_gitleaks_status", "legendFormat": "Gitleaks"},
+          {"expr": "ebc_zap_status", "legendFormat": "ZAP"}
+        ],
+        "options": {"colorMode": "value"}
+      },
+      {
+        "title": "OWASP A01: Broken Access Control",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 12, "y": 0},
+        "id": 10,
+        "targets": [{"expr": "ebc_a01_status", "legendFormat": "A01"}],
+        "options": {"colorMode": "value"},
         "thresholds": [
-          { "color": "red", "value": null },
-          { "color": "orange", "value": 50 },
-          { "color": "green", "value": 80 }
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A02: Cryptographic Failures",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 15, "y": 0},
+        "id": 11,
+        "targets": [{"expr": "ebc_a02_status", "legendFormat": "A02"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A03: Injection",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 18, "y": 0},
+        "id": 12,
+        "targets": [{"expr": "ebc_a03_status", "legendFormat": "A03"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A04: Insecure Design",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 21, "y": 0},
+        "id": 13,
+        "targets": [{"expr": "ebc_a04_status", "legendFormat": "A04"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A05: Security Misconfiguration",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 12, "y": 4},
+        "id": 14,
+        "targets": [{"expr": "ebc_a05_status", "legendFormat": "A05"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A06: Vulnerable Components",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 15, "y": 4},
+        "id": 15,
+        "targets": [{"expr": "ebc_a06_status", "legendFormat": "A06"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A07: Auth Failures",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 18, "y": 4},
+        "id": 16,
+        "targets": [{"expr": "ebc_a07_status", "legendFormat": "A07"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A08: Data Integrity",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 21, "y": 4},
+        "id": 17,
+        "targets": [{"expr": "ebc_a08_status", "legendFormat": "A08"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A09: Logging & Monitoring",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 12, "y": 8},
+        "id": 18,
+        "targets": [{"expr": "ebc_a09_status", "legendFormat": "A09"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
+        ]
+      },
+      {
+        "title": "OWASP A10: SSRF",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 3, "x": 15, "y": 8},
+        "id": 19,
+        "targets": [{"expr": "ebc_a10_status", "legendFormat": "A10"}],
+        "options": {"colorMode": "value"},
+        "thresholds": [
+          {"color": "red", "value": null},
+          {"color": "orange", "value": 0.5},
+          {"color": "green", "value": 1}
         ]
       }
-    },
-    {
-      "title": "Tool Status (1=Passed, 0=Failed, 0.5=No Data)",
-      "type": "stat",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
-      "targets": [
-        { "expr": "ebc_sonarqube_status", "legendFormat": "SonarQube" },
-        { "expr": "ebc_trivy_status", "legendFormat": "Trivy" },
-        { "expr": "ebc_gitleaks_status", "legendFormat": "Gitleaks" },
-        { "expr": "ebc_zap_status", "legendFormat": "ZAP" }
-      ],
-      "options": { "colorMode": "value" }
-    },
-    {
-      "title": "Vulnerabilities by Severity",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
-      "targets": [{ "expr": "ebc_trivy_status", "legendFormat": "Critical" }],
-      "options": {
-        "orientation": "horizontal",
-        "showUnfilled": true,
-        "thresholds": [
-          { "color": "red", "value": null },
-          { "color": "green", "value": 1 }
-        ]
-      }
-    }
-  ],
-  "refresh": "30s",
-  "schemaVersion": 36
+    ],
+    "refresh": "30s",
+    "time": {"from": "now-24h", "to": "now"},
+    "tags": ["security", "ebc", "owasp"],
+    "version": 2,
+    "schemaVersion": 36
+  }
 }
