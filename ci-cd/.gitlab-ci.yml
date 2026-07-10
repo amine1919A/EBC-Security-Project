@@ -1,0 +1,256 @@
+stages:
+  - security-sast
+  - security-sca
+  - security-secrets
+  - test
+  - security-dast
+  - build
+  - deploy
+  - kpi
+
+variables:
+  DOCKER_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  SONAR_HOST_URL: "http://sonarqube:9000"
+  ZAP_TARGET_URL: "http://app:80"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/
+    - node_modules/
+
+before_script:
+  - docker info
+
+# ============================================================
+# ÉTAPE 1 : SAST - Analyse Statique du Code
+# ============================================================
+
+security:sast_sonarqube:
+  stage: security-sast
+  image: sonarsource/sonar-scanner-cli:latest
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey=ebc-app
+      -Dsonar.projectName="EBC Application"
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.login=$SONAR_TOKEN
+      -Dsonar.sources=.
+      -Dsonar.exclusions=vendor/**,node_modules/**,var/**
+      -Dsonar.php.coverage.reportPaths=coverage.xml
+      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.timeout=300
+  artifacts:
+    reports:
+      sonarqube: sonar-report.json
+    paths:
+      - sonar-report.json
+  only:
+    - main
+    - develop
+    - merge_requests
+
+security:sast_phpstan:
+  stage: security-sast
+  image: php:8.2-cli
+  before_script:
+    - apt-get update && apt-get install -y git unzip libpq-dev libzip-dev
+    - docker-php-ext-install pdo pdo_mysql zip
+    - curl -sS https://getcomposer.org/installer | php
+    - mv composer.phar /usr/local/bin/composer
+  script:
+    - cd app/symfony
+    - composer install --no-interaction --no-progress 2>/dev/null || true
+    - vendor/bin/phpstan analyse --level=max src/
+      --error-format=gitlab > ../../phpstan-report.json || true
+  artifacts:
+    paths:
+      - phpstan-report.json
+  only:
+    - main
+    - develop
+
+# ============================================================
+# ÉTAPE 2 : SCA - Analyse des Dépendances
+# ============================================================
+
+security:sca_trivy:
+  stage: security-sca
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - docker build -t ebc-app:$CI_COMMIT_SHA -f app/Dockerfile app/
+    - docker run aquasec/trivy:latest image --severity HIGH,CRITICAL
+      --format json --output trivy-report.json ebc-app:$CI_COMMIT_SHA
+    - docker run aquasec/trivy:latest fs --severity HIGH,CRITICAL
+      --format json --output trivy-fs-report.json .
+  artifacts:
+    paths:
+      - trivy-report.json
+      - trivy-fs-report.json
+  only:
+    - main
+    - develop
+
+# ============================================================
+# ÉTAPE 3 : Détection de Secrets
+# ============================================================
+
+security:secrets_gitleaks:
+  stage: security-secrets
+  image: zricethezav/gitleaks:latest
+  script:
+    - gitleaks detect --source .
+      --config security-tools/gitleaks/.gitleaks.toml
+      --report-path gitleaks-report.json --verbose
+  artifacts:
+    paths:
+      - gitleaks-report.json
+  only:
+    - main
+    - develop
+    - merge_requests
+
+# ============================================================
+# ÉTAPE 4 : Tests Unitaires et API
+# ============================================================
+
+test:unit:
+  stage: test
+  image: php:8.2-cli
+  before_script:
+    - apt-get update && apt-get install -y git unzip libpq-dev libzip-dev
+    - docker-php-ext-install pdo pdo_mysql zip
+    - curl -sS https://getcomposer.org/installer | php
+    - mv composer.phar /usr/local/bin/composer
+  script:
+    - cd app/symfony
+    - composer install --no-interaction --no-progress 2>/dev/null || true
+    - vendor/bin/phpunit --coverage-cobertura=coverage.xml || true
+  artifacts:
+    reports:
+      cobertura: app/symfony/coverage.xml
+    paths:
+      - app/symfony/coverage.xml
+
+test:api:
+  stage: test
+  image: python:3.11
+  script:
+    - pip install -r ci-cd/scripts/api-tests/requirements.txt
+    - pytest ci-cd/scripts/api-tests/ -v --junitxml=api-results.xml
+  artifacts:
+    reports:
+      junit: api-results.xml
+    paths:
+      - api-results.xml
+  only:
+    - main
+    - develop
+
+# ============================================================
+# ÉTAPE 5 : DAST - Tests Dynamiques
+# ============================================================
+
+security:dast_zap:
+  stage: security-dast
+  image: owasp/zap2docker-stable
+  script:
+    - zap-baseline.py -t $ZAP_TARGET_URL
+      -r zap-report.html -I
+      -c security-tools/owasp-zap/policies/EBC-policy.policy
+  artifacts:
+    paths:
+      - zap-report.html
+    reports:
+      dast: zap-report.html
+  only:
+    - main
+  needs:
+    - build
+
+security:dast_nikto:
+  stage: security-dast
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache nikto
+  script:
+    - nikto -h $ZAP_TARGET_URL -Format xml
+      -output nikto-report.xml -Tuning 123456789
+  artifacts:
+    paths:
+      - nikto-report.xml
+  only:
+    - main
+  needs:
+    - build
+
+# ============================================================
+# ÉTAPE 6 : Build de l'Image Docker
+# ============================================================
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -t $DOCKER_IMAGE -f app/Dockerfile app/
+    - docker push $DOCKER_IMAGE
+  only:
+    - main
+
+# ============================================================
+# ÉTAPE 7 : Déploiement
+# ============================================================
+
+deploy:staging:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+  script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "
+        docker pull $DOCKER_IMAGE &&
+        docker stop ebc-app || true &&
+        docker rm ebc-app || true &&
+        docker run -d --name ebc-app -p 8080:80 $DOCKER_IMAGE"
+  only:
+    - main
+  needs:
+    - build
+    - test:unit
+    - test:api
+    - security:sast_sonarqube
+    - security:sca_trivy
+    - security:secrets_gitleaks
+
+# ============================================================
+# ÉTAPE 8 : KPIs et Métriques
+# ============================================================
+
+security:kpi_aggregate:
+  stage: kpi
+  image: python:3.11
+  script:
+    - pip install requests prometheus-client pandas pyyaml
+    - python ci-cd/scripts/aggregate-kpi.py
+  artifacts:
+    paths:
+      - kpi-metrics.json
+  only:
+    - main

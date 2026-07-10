@@ -1,0 +1,14 @@
+vendor/
+node_modules/
+var/
+.env.local
+*.log
+.DS_Store
+sonar-report.json
+zap-report.html
+nikto-report.xml
+trivy-report.json
+gitleaks-report.json
+*.tar.gz
+.php_cs.cache
+.phpunit.result.cache

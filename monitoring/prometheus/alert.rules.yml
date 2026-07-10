@@ -1,0 +1,90 @@
+groups:
+  - name: ebc-security-alerts
+    interval: 30s
+    rules:
+
+      # ─── Critical Alerts ───
+      - alert: SecretDetectedInCode
+        expr: gitleaks_secrets_found > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Secret détecté dans le code source"
+          description: "Gitleaks a trouvé {{ $value }} secret(s) dans le code. Vérifier immédiatement."
+          runbook: "docs/03-troubleshooting.md#secrets"
+
+      - alert: CriticalVulnerabilityFound
+        expr: trivy_critical_vulnerabilities > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "Vulnérabilité critique détectée"
+          description: "Trivy a trouvé {{ $value }} vulnérabilité(s) CRITICAL."
+          runbook: "docs/03-troubleshooting.md#vulnerabilities"
+
+      - alert: SonarQubeQualityGateFailed
+        expr: sonarqube_quality_gate_status == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: dev
+        annotations:
+          summary: "Quality Gate SonarQube échoué"
+          description: "Le projet n'a pas passé le Quality Gate sur SonarQube."
+
+      # ─── Major Alerts ───
+      - alert: HighVulnerabilityWarning
+        expr: trivy_high_vulnerabilities > 5
+        for: 5m
+        labels:
+          severity: major
+          team: dev
+        annotations:
+          summary: "Trop de vulnérabilités HIGH"
+          description: "{{ $value }} vulnérabilités HIGH détectées (seuil: 5)."
+
+      - alert: ZAPHighAlert
+        expr: zap_high_alerts > 0
+        for: 2m
+        labels:
+          severity: major
+          team: security
+        annotations:
+          summary: "Alerte ZAP de niveau HIGH"
+          description: "OWASP ZAP a détecté {{ $value }} alerte(s) de niveau HIGH."
+
+      # ─── Warning Alerts ───
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: warning
+          team: infra
+        annotations:
+          summary: "Service {{ $labels.instance }} indisponible"
+          description: "Le service {{ $labels.job }} est injoignable depuis {{ $value }}s."
+
+      - alert: PipelineDurationExceeded
+        expr: pipeline_duration_seconds > 900
+        for: 5m
+        labels:
+          severity: warning
+          team: dev
+        annotations:
+          summary: "Pipeline CI/CD trop long"
+          description: "Le pipeline dure {{ $value }}s (seuil: 900s = 15min)."
+
+      # ─── Info Alerts ───
+      - alert: NewVulnerabilitiesFound
+        expr: trivy_total_vulnerabilities > 0
+        for: 10m
+        labels:
+          severity: info
+          team: dev
+        annotations:
+          summary: "Nouvelles vulnérabilités détectées"
+          description: "{{ $value }} vulnérabilité(s) totale(s) dans le dernier scan."

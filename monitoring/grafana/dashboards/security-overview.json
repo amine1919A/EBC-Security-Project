@@ -1,0 +1,184 @@
+{
+  "dashboard": {
+    "title": "Sécurité EBC - Vue d'Ensemble",
+    "description": "Tableau de bord de sécurité pour l'application EBC",
+    "timezone": "browser",
+    "editable": true,
+    "panels": [
+      {
+        "title": "Qualité du Code (SonarQube)",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [{"expr": "sonarqube_quality_gate_status"}],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "textMode": "auto"
+        }
+      },
+      {
+        "title": "Vulnérabilités CRITICAL",
+        "type": "bargauge",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [{"expr": "trivy_critical_vulnerabilities"}],
+        "options": {
+          "orientation": "horizontal",
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "title": "Vulnérabilités HIGH",
+        "type": "bargauge",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+        "targets": [{"expr": "trivy_high_vulnerabilities"}],
+        "options": {
+          "orientation": "horizontal",
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "title": "Secrets Détectés",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+        "targets": [{"expr": "gitleaks_secrets_found"}],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "textMode": "auto"
+        }
+      },
+      {
+        "title": "Alertes OWASP ZAP (Dernier Scan)",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8},
+        "targets": [
+          {"expr": "zap_high_alerts", "legendFormat": "HIGH"},
+          {"expr": "zap_medium_alerts", "legendFormat": "MEDIUM"},
+          {"expr": "zap_low_alerts", "legendFormat": "LOW"}
+        ],
+        "options": {
+          "pieType": "pie",
+          "displayLabels": ["value", "name", "percent"],
+          "legend": {"displayMode": "table", "placement": "right", "showLegend": true},
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]}
+        }
+      },
+      {
+        "title": "Temps d'Exécution Pipeline (7 derniers jours)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8},
+        "targets": [{"expr": "pipeline_duration_seconds"}],
+        "options": {
+          "legend": {"calcs": ["mean", "max", "min"], "displayMode": "table", "placement": "right", "showLegend": true},
+          "tooltip": {"mode": "multi"},
+          "thresholds": [{"value": 900, "color": "red"}]
+        }
+      },
+      {
+        "title": "Taux de Faux Positifs",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8},
+        "targets": [{"expr": "false_positive_rate"}],
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true,
+          "thresholds": [
+            {"value": 20, "color": "red"},
+            {"value": 10, "color": "yellow"},
+            {"value": 0, "color": "green"}
+          ]
+        }
+      },
+      {
+        "title": "État du Pipeline CI/CD",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+        "targets": [{"expr": "pipeline_job_status"}],
+        "options": {
+          "sortBy": [{"displayName": "Stage"}],
+          "showHeader": true,
+          "footer": {"enablePagination": false}
+        },
+        "transformations": [
+          {"id": "organize", "options": {"excludeByName": {}, "indexByName": {}, "renameByName": {"Value": "Status", "__name__": "Job"}}}
+        ]
+      },
+      {
+        "title": "KPIs - Couverture OWASP Top 10",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 24},
+        "targets": [
+          {"expr": "owasp_covered", "legendFormat": "Couverts"},
+          {"expr": "owasp_not_covered", "legendFormat": "Non couverts"}
+        ],
+        "options": {
+          "pieType": "donut",
+          "displayLabels": ["value", "name", "percent"],
+          "legend": {"displayMode": "table", "placement": "bottom", "showLegend": true},
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]}
+        }
+      },
+      {
+        "title": "Score Global de Sécurité",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 24},
+        "targets": [{"expr": "security_score"}],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": -Infinity, "color": "red"},
+                {"value": 50, "color": "yellow"},
+                {"value": 80, "color": "green"}
+              ]
+            },
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "title": "Dernière Analyse",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 24},
+        "targets": [{"expr": "last_scan_timestamp"}],
+        "options": {
+          "colorMode": "none",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": {"values": false, "calcs": ["lastNotNull"]},
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "time_ago"
+          }
+        }
+      }
+    ],
+    "refresh": "30s",
+    "time": {"from": "now-24h", "to": "now"},
+    "tags": ["security", "ebc", "devsecops"],
+    "version": 1,
+    "schemaVersion": 36
+  }
+}

@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ebc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ebc_secret_2024
+      MYSQL_DATABASE: ebc_sulu
+      MYSQL_USER: ebc_user
+      MYSQL_PASSWORD: ebc_pass_2024
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - ebc-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: elasticsearch:7.17
+    container_name: ebc-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      xpack.security.enabled: "false"
+    ports:
+      - "9201:9200"
+    networks:
+      - ebc-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  app:
+    image: php:8.2-fpm
+    container_name: ebc-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ./app/symfony:/var/www/html
+    working_dir: /var/www/html
+    command: >
+      sh -c "docker-php-ext-install pdo pdo_mysql &&
+             php -S 0.0.0.0:9000 -t public/"
+    ports:
+      - "9000:9000"
+    networks:
+      - ebc-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: ebc-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - ./app/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./app/symfony/public:/var/www/html/public
+    ports:
+      - "8080:80"
+    networks:
+      - ebc-network
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: ebc-sonarqube
+    restart: unless-stopped
+    depends_on:
+      - sonar-db
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonar-data:/opt/sonarqube/data
+      - ./security-tools/sonarqube/rules:/opt/sonarqube/extensions/rules
+    networks:
+      - ebc-network
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  sonar-db:
+    image: postgres:13
+    container_name: ebc-sonar-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar-db-data:/var/lib/postgresql/data
+    networks:
+      - ebc-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ebc-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - ebc-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ebc-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    networks:
+      - ebc-network
+
+volumes:
+  mysql-data:
+  sonar-data:
+  sonar-db-data:
+  grafana-data:
+
+networks:
+  ebc-network:
+    driver: bridge

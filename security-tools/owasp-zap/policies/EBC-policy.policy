@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<policy>
+    <name>EBC Security Policy</name>
+    <description>Politique de sécurité personnalisée pour l'application EBC</description>
+
+    <!-- SQL Injection -->
+    <scanner>
+        <id>40018</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- SQL Injection (Blind) -->
+    <scanner>
+        <id>40012</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- XSS (Reflected) -->
+    <scanner>
+        <id>40014</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- XSS (Stored) -->
+    <scanner>
+        <id>40016</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- CSRF -->
+    <scanner>
+        <id>40017</id>
+        <threshold>MEDIUM</threshold>
+        <strength>MEDIUM</strength>
+    </scanner>
+
+    <!-- Path Traversal -->
+    <scanner>
+        <id>40020</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- Remote File Inclusion -->
+    <scanner>
+        <id>40021</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- Server Side Request Forgery -->
+    <scanner>
+        <id>40022</id>
+        <threshold>LOW</threshold>
+        <strength>MEDIUM</strength>
+    </scanner>
+
+    <!-- Command Injection -->
+    <scanner>
+        <id>40023</id>
+        <threshold>LOW</threshold>
+        <strength>HIGH</strength>
+    </scanner>
+
+    <!-- XML External Entity -->
+    <scanner>
+        <id>40024</id>
+        <threshold>LOW</threshold>
+        <strength>MEDIUM</strength>
+    </scanner>
+
+    <!-- Insecure Authentication -->
+    <scanner>
+        <id>10101</id>
+        <threshold>MEDIUM</threshold>
+        <strength>MEDIUM</strength>
+    </scanner>
+</policy>

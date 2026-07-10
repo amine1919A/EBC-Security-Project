@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rules>
+    <rule>
+        <key>EBC-SQL-Injection</key>
+        <name>SQL Injection Prevention</name>
+        <description>Ensure no raw SQL queries without prepared statements</description>
+        <severity>CRITICAL</severity>
+    </rule>
+    <rule>
+        <key>EBC-XSS-Prevention</key>
+        <name>XSS Prevention</name>
+        <description>Ensure all output is properly escaped</description>
+        <severity>CRITICAL</severity>
+    </rule>
+    <rule>
+        <key>EBC-CSRF-Protection</key>
+        <name>CSRF Protection</name>
+        <description>Ensure CSRF tokens are used on all forms</description>
+        <severity>MAJOR</severity>
+    </rule>
+    <rule>
+        <key>EBC-Auth-Bypass</key>
+        <name>Authentication Bypass Prevention</name>
+        <description>Ensure all admin routes are properly authenticated</description>
+        <severity>CRITICAL</severity>
+    </rule>
+</rules>
