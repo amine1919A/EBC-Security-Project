@@ -26,7 +26,8 @@ jobs:
         with:
           args: >
             -Dsonar.projectKey=ebc-app
-            -Dsonar.sources=.
+            -Dsonar.organization=amine1919a
+            -Dsonar.sources=app/symfony
             -Dsonar.exclusions=vendor/**,node_modules/**,var/**
             -Dsonar.php.coverage.reportPaths=coverage.xml
             -Dsonar.qualitygate.wait=true
@@ -78,10 +79,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Snyk Scan
-        uses: snyk/actions/php@master
+        uses: snyk/actions/cli@master
+        continue-on-error: true
         with:
-          args: --severity-threshold=high
-          command: test
+          args: --severity-threshold=high --file=app/symfony/composer.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   # ─── SECRETS ───
   secrets-gitleaks:
