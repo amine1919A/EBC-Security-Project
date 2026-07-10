@@ -144,8 +144,28 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - name: Docker Compose up
-        run: docker compose -f docker-compose.yml up -d app mysql elasticsearch || echo "Docker compose failed, continuing"
+      - name: Start services
+        run: |
+          docker network create ebc-network 2>/dev/null || true
+          docker run -d --name ebc-mysql --network ebc-network \
+            -e MYSQL_ROOT_PASSWORD=ebc_secret_2024 \
+            -e MYSQL_DATABASE=ebc_sulu \
+            -e MYSQL_USER=ebc_user \
+            -e MYSQL_PASSWORD=ebc_pass_2024 \
+            mysql:8.0
+          docker run -d --name ebc-elasticsearch --network ebc-network \
+            -e discovery.type=single-node \
+            -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
+            -e xpack.security.enabled=false \
+            elasticsearch:8.10.2
+          docker run -d --name ebc-app --network ebc-network \
+            -p 9001:9000 \
+            ebc-app:${{ github.sha }}
+          docker run -d --name ebc-nginx --network ebc-network \
+            -v ${{ github.workspace }}/app/nginx/default.conf:/etc/nginx/conf.d/default.conf \
+            -v ${{ github.workspace }}/app/symfony/public:/var/www/html/public \
+            -p 8080:80 \
+            nginx:alpine
       - name: Wait for services
         run: sleep 30
       - name: API Tests
@@ -171,7 +191,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start app for ZAP
         run: |
-          docker compose -f docker-compose.yml up -d app mysql elasticsearch nginx
+          docker network create ebc-network 2>/dev/null || true
+          docker run -d --name ebc-mysql --network ebc-network \
+            -e MYSQL_ROOT_PASSWORD=ebc_secret_2024 \
+            -e MYSQL_DATABASE=ebc_sulu \
+            -e MYSQL_USER=ebc_user \
+            -e MYSQL_PASSWORD=ebc_pass_2024 \
+            mysql:8.0
+          docker run -d --name ebc-elasticsearch --network ebc-network \
+            -e discovery.type=single-node \
+            -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
+            -e xpack.security.enabled=false \
+            elasticsearch:8.10.2
+          docker run -d --name ebc-app --network ebc-network \
+            -p 9001:9000 \
+            ebc-app:${{ github.sha }}
+          docker run -d --name ebc-nginx --network ebc-network \
+            -v ${{ github.workspace }}/app/nginx/default.conf:/etc/nginx/conf.d/default.conf \
+            -p 8080:80 \
+            nginx:alpine
           sleep 15
       - name: ZAP Scan
         uses: zaproxy/action-baseline@v0.7.0
@@ -197,7 +235,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Start app for Nikto
         run: |
-          docker compose -f docker-compose.yml up -d app mysql elasticsearch nginx
+          docker network create ebc-network 2>/dev/null || true
+          docker run -d --name ebc-mysql --network ebc-network \
+            -e MYSQL_ROOT_PASSWORD=ebc_secret_2024 \
+            -e MYSQL_DATABASE=ebc_sulu \
+            -e MYSQL_USER=ebc_user \
+            -e MYSQL_PASSWORD=ebc_pass_2024 \
+            mysql:8.0
+          docker run -d --name ebc-elasticsearch --network ebc-network \
+            -e discovery.type=single-node \
+            -e ES_JAVA_OPTS="-Xms512m -Xmx512m" \
+            -e xpack.security.enabled=false \
+            elasticsearch:8.10.2
+          docker run -d --name ebc-app --network ebc-network \
+            -p 9001:9000 \
+            ebc-app:${{ github.sha }}
+          docker run -d --name ebc-nginx --network ebc-network \
+            -v ${{ github.workspace }}/app/nginx/default.conf:/etc/nginx/conf.d/default.conf \
+            -p 8080:80 \
+            nginx:alpine
           sleep 15
       - name: Nikto Scan
         run: |
