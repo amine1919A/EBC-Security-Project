@@ -1,0 +1,51 @@
+{
+  "title": "EBC Security KPIs",
+  "uid": "ebc-security-kpis",
+  "tags": ["ebc", "security"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Global Security Score",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [{ "expr": "ebc_security_score", "legendFormat": "Score" }],
+      "options": {
+        "min": 0,
+        "max": 100,
+        "thresholds": [
+          { "color": "red", "value": null },
+          { "color": "orange", "value": 50 },
+          { "color": "green", "value": 80 }
+        ]
+      }
+    },
+    {
+      "title": "Tool Status (1=Passed, 0=Failed, 0.5=No Data)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        { "expr": "ebc_sonarqube_status", "legendFormat": "SonarQube" },
+        { "expr": "ebc_trivy_status", "legendFormat": "Trivy" },
+        { "expr": "ebc_gitleaks_status", "legendFormat": "Gitleaks" },
+        { "expr": "ebc_zap_status", "legendFormat": "ZAP" }
+      ],
+      "options": { "colorMode": "value" }
+    },
+    {
+      "title": "Vulnerabilities by Severity",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [{ "expr": "ebc_trivy_status", "legendFormat": "Critical" }],
+      "options": {
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "thresholds": [
+          { "color": "red", "value": null },
+          { "color": "green", "value": 1 }
+        ]
+      }
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 36
+}
